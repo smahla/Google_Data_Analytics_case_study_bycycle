@@ -1,0 +1,135 @@
+Note: These queries are performed in postgres database:
+
+To import the data from csv files create table in database
+
+CREATE TABLE trip_data (
+  ride_id VARCHAR(20),
+  rideable_type VARCHAR(15),
+  started_at DATE,
+  ended_at DATE,
+  start_station_name VARCHAR(50),
+  start_station_id INT,
+  end_station_name VARCHAR(50),
+  end_station_id INT,
+  start_lat DECIMAL,
+  start_lng DECIMAL,
+  end_lat DECIMAL,
+  end_lng DECIMAL,
+  member_casual VARCHAR(20),
+  PRIMARY KEY (ride_id)
+);
+
+# Changed datatypes later to TIMESTAMP but no use, TRUNCATE table and load data again
+ALTER TABLE trip_data
+ALTER COLUMN started_at TYPE TIMESTAMP; 
+ALTER TABLE trip_data
+ALTER COLUMN ended_at TYPE TIMESTAMP; 
+
+# Truncate table
+TRUNCATE TABLE trip_data;
+
+# Insert Data from csv:
+- Right click on table name
+- Select Import/Export data
+- Select Import, provide file name, specify header present or not, specify delimiter
+- select ok
+
+# Import all csv files 
+
+# Getting overview of data
+SELECT * FROM trip_data LIMIT 5;
+
+# Get total rows
+SELECT COUNT(*) FROM trip_data; - 3410110
+
+# Count for no of values in all columns
+SELECT 
+COUNT(ride_id) AS ride_id_count,
+COUNT(rideable_type) AS rideable_count,
+COUNT(started_at) AS started_at_count,
+COUNT(ended_at) AS ended_at_count,
+COUNT(start_station_name) AS start_station_name_count,
+COUNT(start_station_id) AS start_station_id_count,
+COUNT(end_station_name) AS end_station_name_count,
+COUNT(end_station_id) AS end_station_id_count,
+COUNT(member_casual) AS member_casual_count
+FROM trip_data;
+
+** There is mismatch in counts of start_station_name, start_station_id, end_station_name, end_station_id 
+SELECT COUNT(*) FROM trip_data WHERE start_station_name IS NULL; --82957
+SELECT COUNT(*) FROM trip_data WHERE end_station_name IS NULL; --97644
+
+
+# Check for duplicate entries
+SELECT ride_id, COUNT(*) FROM trip_data
+GROUP BY ride_id
+HAVING COUNT(ride_id) > 1;
+
+# Get date range for data available
+SELECT MIN(started_at), MAX(started_at) FROM trip_data;
+
+# No of rides by month
+SELECT EXTRACT(MONTH FROM started_at), COUNT(*) FROM trip_data
+GROUP BY EXTRACT(MONTH FROM started_at);
+
+# No of rides by weekday
+SELECT EXTRACT(DOW FROM started_at), COUNT(*) FROM trip_data
+GROUP BY EXTRACT(DOW FROM started_at);
+
+# Distinct rideable types
+SELECT DISTINCT rideable_type FROM trip_data;
+
+# No. of rides by rideable type
+SELECT rideable_type, count(*) FROM trip_data
+GROUP BY rideable_type;
+
+# Distinct member casual
+SELECT DISTINCT member_casual FROM trip_data;
+
+# No. of rides by member type
+SELECT member_casual, count(*) FROM trip_data
+GROUP BY member_casual;
+
+# Top 5 longest rides - differ on casual and annual
+SELECT 
+ride_id,
+member_casual,
+AGE(ended_at, started_at) as ride_length
+FROM trip_data
+ORDER BY ride_length DESC
+LIMIT 5;
+
+# Top 5 shortest rides - differ on casual and annual
+SELECT 
+ride_id,
+member_casual,
+AGE(ended_at, started_at) as ride_length
+FROM trip_data
+ORDER BY ride_length
+LIMIT 5;
+
+# Top 5 Routes taken - differ on casual and annual
+SELECT CONCAT(start_station_name,' to ', end_station_name) AS ROUTE, COUNT(*) FROM trip_data
+WHERE start_station_name IS NOT NULL AND end_station_name IS NOT NULL
+GROUP BY ROUTE
+ORDER BY COUNT(*) DESC
+LIMIT 5;
+
+# Bottom 5 Routes taken - differ on casual and annual
+SELECT CONCAT(start_station_name,' to ', end_station_name) AS ROUTE, COUNT(*) FROM trip_data
+WHERE start_station_name IS NOT NULL AND end_station_name IS NOT NULL
+GROUP BY ROUTE
+ORDER BY COUNT(*)
+LIMIT 5;
+
+
+# Avg, Min, Max ride length by member_casual
+SELECT 
+member_casual,
+MIN(AGE(ended_at, started_at)) as min_ride_length,
+AVG(AGE(ended_at, started_at)) as avg_ride_length, 
+MAX(AGE(ended_at, started_at)) as max_ride_length
+FROM trip_data
+GROUP BY member_casual;
+
+# Avg ride length on week days 
